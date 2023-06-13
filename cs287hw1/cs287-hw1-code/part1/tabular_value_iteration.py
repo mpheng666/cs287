@@ -132,15 +132,27 @@ class ValueIteration(object):
         """
 
         """ INSERT YOUR CODE HERE"""
-        next_v = np.array()
-        # current_v = self.value_fun.get_values(self.env.)
         if self.policy_type == 'deterministic':
-            # next value = max of act of summation of transition(s,a,s') * (reward(s,a,s') + gamma * current_value(s'))
-            next_v = max() * self.value_fun
-            raise NotImplementedError
+            next_v = np.max((np.sum((self.transitions*(self.rewards + self.discount*self.value_fun.get_values())), axis=2)), axis=1)
+            # print("transition: ", self.transitions.shape)
+            # print("rewards: ", self.rewards.shape)
+            # print("current_value: ", self.value_fun.get_values().shape)
+            # print("total reward shape: ", (self.rewards + self.value_fun.get_values()).shape)
+            # print("transition times reward shape: ", (self.transitions*(self.rewards + self.discount*self.value_fun.get_values())).shape)
+            # print("sum shape: ", np.sum((self.transitions*(self.rewards + self.discount*self.value_fun.get_values())), axis=2).shape)
+            # print("next_v: ", next_v.shape)
         elif self.policy_type == 'max_ent':
-            raise NotImplementedError
-            """ Your code ends here"""
+            # v = B * log(sum(exp(1/B * Q(s,a))))
+            beta = self.temperature
+            Q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
+            # Q_sub = np.expand_dims(np.max(Q, axis=1), axis=1)
+            next_v = beta * np.log((np.sum(np.exp((Q)/beta), axis=1)))
+            # next_v += np.max(Q, axis=1)
+            # print("Q shape: ", Q.shape)
+            # print("Q sub shape: ", Q_sub.shape)
+            # print("Q - Q sub shape: ", (Q-Q_sub).shape)
+            # print("exp (Q - Q sub) shape: ", (np.exp(Q-Q_sub)).shape)
+            # print("sum (exp (Q - Q sub)) shape: ", (np.sum(np.exp(Q-Q_sub),  axis=1).shape))
         else:
             raise NotImplementedError
         return next_v
@@ -158,10 +170,15 @@ class ValueIteration(object):
 
         """INSERT YOUR CODE HERE"""
         if self.policy_type == 'deterministic':
-            raise NotImplementedError
+            pi = np.argmax((np.sum((self.transitions*(self.rewards + self.discount*self.value_fun.get_values())), axis=2)), axis=1)
         elif self.policy_type == 'max_ent':
-            raise NotImplementedError
+            # raise NotImplementedError
             """ Your code ends here"""
+            # pi = 1/z * (exp(1/B * Q(s,a)))
+            beta = self.temperature
+            Q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
+            z = np.sum(np.exp(self.rewards/beta), axis=2)
+            pi = np.exp(Q/beta) / z
         else:
             raise NotImplementedError
         return pi
