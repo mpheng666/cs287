@@ -144,15 +144,13 @@ class ValueIteration(object):
         elif self.policy_type == 'max_ent':
             # v = B * log(sum(exp(1/B * Q(s,a))))
             beta = self.temperature
-            Q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
-            # Q_sub = np.expand_dims(np.max(Q, axis=1), axis=1)
-            next_v = beta * np.log((np.sum(np.exp((Q)/beta), axis=1)))
-            # next_v += np.max(Q, axis=1)
-            # print("Q shape: ", Q.shape)
-            # print("Q sub shape: ", Q_sub.shape)
-            # print("Q - Q sub shape: ", (Q-Q_sub).shape)
-            # print("exp (Q - Q sub) shape: ", (np.exp(Q-Q_sub)).shape)
-            # print("sum (exp (Q - Q sub)) shape: ", (np.sum(np.exp(Q-Q_sub),  axis=1).shape))
+            q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
+            q_max = np.max(q, axis=1, keepdims=True)
+            next_v = beta * np.log((np.sum(np.exp((q- q_max)/beta), axis=1)))
+            print("q shape: ", q.shape)
+            print("next_v shape: ", next_v.shape)
+            next_v += q_max[:,0]
+            print("next_v2 shape: ", q_max.shape)
         else:
             raise NotImplementedError
         return next_v
@@ -175,10 +173,9 @@ class ValueIteration(object):
             # raise NotImplementedError
             """ Your code ends here"""
             # pi = 1/z * (exp(1/B * Q(s,a)))
-            beta = self.temperature
-            Q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
-            z = np.sum(np.exp(self.rewards/beta), axis=2)
-            pi = np.exp(Q/beta) / z
+            q = np.sum(self.transitions*(self.rewards + self.discount * self.value_fun.get_values()), axis=2)
+            pi_unnormalized = np.exp(q - np.max(q, axis=1, keepdims=True)) + self.eps
+            pi = pi_unnormalized / np.sum(pi_unnormalized, axis=1, keepdims=True)
         else:
             raise NotImplementedError
         return pi
