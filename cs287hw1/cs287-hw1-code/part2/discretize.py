@@ -40,14 +40,41 @@ class Discretize(DiscretizeWrapper):
         """
         """INSERT YOUR CODE HERE"""
         cont_state = np.expand_dims(cont_state, axis=-1)
+        obs_dim = cont_state.shape[0]
         if self.mode == 'nn':
-            raise NotImplementedError
+            closest_i = np.argmin(np.abs(self.state_points - cont_state), axis=1)
+            id_s = self.get_id_from_coordinates(closest_i)
+            states = np.array([id_s])
+            probs = np.array([1])
 
         elif self.mode == 'linear':
-            raise NotImplementedError
+            upper_i = np.argmax(self.state_points > cont_state, axis=-1)
+            lower_i = upper_i - 1
+            
+            too_small_i = np.sum(self.state_points < cont_state, axis=-1) == 0
+            too_large_i = np.sum(self.state_points > cont_state, axis=-1) == 0
+
+            upper_s = np.expand_dims(self.state_points[np.arange(obs_dim), upper_i], -1)
+            lower_s = np.expand_dims(self.state_points[np.arange(obs_dim), lower_i], -1)
+
+            upper_p = (cont_state - lower_s) / (upper_s - lower_s)
+            lower_p = (cont_state - upper_s) / (lower_s - upper_s)
+
+            cs = np.column_stack([lower_i, upper_i])
+            ps = np.column_stack([lower_p, upper_p])
+
+            ps[too_small_i] = [0, 1]
+            ps[too_large_i] = [1, 0]
+
+            c_combos = np.array(np.meshgrid(*cs)).T.reshape(-1, obs_dim)
+            p_combos = np.array(np.meshgrid(*ps)).T.reshape(-1, obs_dim)
+
+            states = self.get_id_from_coordinates(c_combos)
+            probs = np.prod(p_combos, axis=1)
             """Your code ends here"""
         else:
-            raise NotImplementedError
+            print("none")
+            # raise NotImplementedError
         return states, probs
 
     def add_transition(self, id_s, id_a):
@@ -59,9 +86,23 @@ class Discretize(DiscretizeWrapper):
         """
         env = self._wrapped_env
         obs_n = self.obs_n
-
         """INSERT YOUR CODE HERE"""
-        raise NotImplementedError
+        s = self.get_state_from_id(id_s)
+        a = self.get_action_from_id(id_a)
+        env.set_state(s)
+        ns, reward, done, env_infos = env.step(a)
+        if done:
+            self.transitions[id_s, id_a, obs_n] = 1
+            self.rewards[id_s, id_a, obs_n] = reward
+        else:
+            nds, probs = self.get_discrete_state_from_cont_state(ns)
+            if self.mode == "nn":
+                self.transitions[id_s, id_a, nds] = probs
+                self.rewards[id_s, id_a, nds] = reward
+            if self.mode == "linear":
+                for i in range(len(nds)):
+                    self.transitions[id_s, id_a, nds[i]] = probs[i]
+                    self.rewards[id_s, id_a, nds[i]] = reward
 
     def add_done_transitions(self):
         """
@@ -69,7 +110,8 @@ class Discretize(DiscretizeWrapper):
         corresponds to the last state (self.obs_n or -1).
         """
         """INSERT YOUR CODE HERE"""
-        raise NotImplementedError
+        self.transitions[-1, :, -1] = 1
+        self.rewards[-1, :, -1] = 0
 
 
 
